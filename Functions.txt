@@ -1,1 +1,0 @@
-This file is for functions that have been annotated and deemed useful for the group projects.
