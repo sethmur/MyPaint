@@ -13,4 +13,5 @@ Seth Murdoch	  - Paint Cursor
 
 # Controls
 Left click to draw
+
 Right click to erase
