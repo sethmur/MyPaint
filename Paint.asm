@@ -10,11 +10,9 @@
 .model flat, stdcall
 option casemap :none
 
-WinMain proto :DWORD,:DWORD,:DWORD,:DWORD		
-
+																;Includes
 ;INCLUDE io.h
-
-include \masm32\include\windows.inc				;Needed to install
+include \masm32\include\windows.inc								;Needed to install
 include \masm32\include\user32.inc 
 include \masm32\include\kernel32.inc 
 include \masm32\include\gdi32.inc 
@@ -24,26 +22,30 @@ includelib \masm32\lib\gdi32.lib
 
 
 
+WinMain proto :DWORD,:DWORD,:DWORD,:DWORD						;procedure prototypes
+getCoord proto :LPARAM
+
+
+
 .stack 4096
 
-.data?
+.data?															;Variable Data
 hInstance HINSTANCE ?											;
 CommandLine LPSTR ?												;
-hitpoint POINT <>												;
+hitpoint POINT <>												;click location
 
 
-.data
+.data															;Constant Data
 AppName  db "MyPaint",0											;window name
-message  db ".",0												;what will be drawn
 ClassName db "SimpleWinClass",0									;
 MouseClick db 0													; 0=no click yet
 
 .code
-WinMainCRTStartup PROC
-	invoke GetModuleHandle, NULL									;?
-    mov    hInstance,eax											;?
-    invoke GetCommandLine											;?
-    mov CommandLine,eax												;?
+WinMainCRTStartup PROC												;Setup
+	invoke GetModuleHandle, NULL									;places module handle into eax
+    mov    hInstance,eax											;
+    invoke GetCommandLine											;
+    mov CommandLine,eax												;
     invoke WinMain, hInstance,NULL,CommandLine, SW_SHOWDEFAULT		;window
     invoke ExitProcess,eax
 WinMainCRTStartup ENDP
@@ -51,8 +53,9 @@ WinMainCRTStartup ENDP
 WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD 
     LOCAL wc:WNDCLASSEX 
     LOCAL msg:MSG 
-    LOCAL hwnd:HWND 
-    mov   wc.cbSize,SIZEOF WNDCLASSEX								;?
+    LOCAL hwnd:HWND													;local variable declarations
+
+    mov   wc.cbSize,SIZEOF WNDCLASSEX								;Size
     mov   wc.style, CS_HREDRAW or CS_VREDRAW						;?
     mov   wc.lpfnWndProc, OFFSET WndProc							;?
     mov   wc.cbClsExtra,NULL										;?
@@ -76,9 +79,9 @@ WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD
     invoke ShowWindow, hwnd,SW_SHOWNORMAL							;Displays Window
     invoke UpdateWindow, hwnd										;
     .WHILE TRUE														;loop changes message
-                invoke GetMessage, ADDR msg,NULL,0,0				;gets mouse input
+                invoke GetMessage, ADDR msg,NULL,0,0				;gets message (https://docs.microsoft.com/en-us/cpp/mfc/reference/handlers-for-wm-messages)
                 .BREAK .IF (!eax) 
-                invoke DispatchMessage, ADDR msg					;sends mouse input
+                invoke DispatchMessage, ADDR msg					;sends message
     .ENDW 
     mov     eax,msg.wParam 
     ret 
@@ -86,40 +89,66 @@ WinMain endp
 
 WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM 
     LOCAL hdc:HDC 
-    LOCAL ps:PAINTSTRUCT
 
     .IF uMsg==WM_DESTROY											;x button
         invoke PostQuitMessage,NULL									;Closes Window
-    .ELSEIF uMsg==WM_LBUTTONDOWN									;Detects mouse click
-        mov eax,lParam												
-        and eax,0FFFFh 
-        mov hitpoint.x,eax											;Processes x-coordinates
 
-        mov eax,lParam 
-        shr eax,16 
-        mov hitpoint.y,eax											;Processes y-coordinates
+    .ELSEIF uMsg==WM_LBUTTONDOWN									;mouse click
 
-        mov MouseClick,TRUE 
-        invoke InvalidateRect,hWnd,NULL,FALSE						;prepares area for editing
+		invoke getCoord, lParam										;Gets mouse coordinates
+        mov MouseClick,TRUE											;
+		invoke MoveToEx, hdc, hitpoint.x, hitpoint.y, NULL			;Moves drawing marker
+        ;invoke InvalidateRect,hWnd,NULL,FALSE					;Prepares area for editing(Dont need. interesting if you want to mess up other windows)
 																	;hWnd:this window	Null:whole window	False:doesn't clear area first
-    .ELSEIF uMsg==WM_PAINT 
-        invoke BeginPaint,hWnd, ADDR ps 
-        mov    hdc,eax 
-        .IF MouseClick 
-            invoke lstrlen,ADDR message										;
-            invoke TextOut,hdc,hitpoint.x,hitpoint.y,ADDR message,eax		;places message at coords
+
+    .ELSEIF uMsg==WM_PAINT											;WM_Paint sends when some area is invalidated
+		invoke GetDC, hWnd
+		mov    hdc,eax 
+
+        .IF MouseClick
+			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, 0			;sets pixel at x,y to color 0 (black)
+
         .ENDIF 
-        invoke EndPaint,hWnd, ADDR ps 
-    .ELSE 
-        invoke DefWindowProc,hWnd,uMsg,wParam,lParam 
+		invoke ReleaseDC, hWnd, hdc
+
+	.ELSEIF uMsg==WM_MOUSEMOVE
+		.if MouseClick
+			invoke GetDC, hWnd 
+			mov    hdc,eax
+			invoke getCoord, lParam
+			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, 0
+			invoke ReleaseDC, hWnd, hdc
+		.ENDIF
+    
+	
+	.ELSEIF uMsg==WM_LBUTTONUP										;cancels drawing on movement
+		.IF MouseClick
+			mov MouseClick, FALSE
+		.ENDIF
+
+
+	.ELSE
+		invoke DefWindowProc,hWnd,uMsg,wParam,lParam				;
         ret 
     .ENDIF 
+	 
     xor    eax,eax 
     ret 
 WndProc endp 
 
-	
-	
-	
+
+
+getCoord proc lParam:LPARAM										;Gets mouse coordinates
+	mov eax,lParam												
+	and eax,0FFFFh 
+	mov hitpoint.x,eax											;Processes x-coordinates
+
+	mov eax,lParam 
+	shr eax,16 
+	mov hitpoint.y,eax											;Processes y-coordinates
+	ret
+getCoord endp
+
+
 END
 
