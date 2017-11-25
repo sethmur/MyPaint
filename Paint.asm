@@ -11,37 +11,48 @@
 option casemap :none
 
 																;Includes
-;INCLUDE io.h
+;INCLUDE io.h													;User I/O tools
 include \masm32\include\windows.inc								;Needed to install
-include \masm32\include\user32.inc 
+include \masm32\include\user32.inc								;Windows tools
 include \masm32\include\kernel32.inc 
-include \masm32\include\gdi32.inc 
 includelib \masm32\lib\user32.lib 
 includelib \masm32\lib\kernel32.lib 
+
+include \masm32\include\gdi32.inc								;Drawing tools
 includelib \masm32\lib\gdi32.lib
 
 
-
+WinMainCRTStartup proto
 WinMain proto :DWORD,:DWORD,:DWORD,:DWORD						;procedure prototypes
 getCoord proto :LPARAM
-
+setColor proto
 
 
 .stack 4096
 
-.data?															;Variable Data
-hInstance HINSTANCE ?											;
+.data?
+hInstance HINSTANCE ?											;handler
 CommandLine LPSTR ?												;
 hitpoint POINT <>												;click location
+;string Word DUP 3 (?)
 
 
-.data															;Constant Data
+
+
+.data
 AppName  db "MyPaint",0											;window name
 ClassName db "SimpleWinClass",0									;
-MouseClick db 0													; 0=no click yet
+LeftMouseClick db 0												;0=no click yet
+RightMouseClick db 0
+eraseColor DWORD 00FFFFFFh										;Sets erase color to white
+penColor DWORD 0												;Color of pen intitated as black
+
+redPrompt BYTE "Enter the red value (0-255):",0					;Prompts for changing pen color
+greenPrompt	BYTE "Enter the green value (0-255):",0
+bluePrompt BYTE "Enter the blue value (0-255):",0
 
 .code
-WinMainCRTStartup PROC												;Setup
+WinMainCRTStartup PROC														;Setup
 	invoke GetModuleHandle, NULL									;places module handle into eax
     mov    hInstance,eax											;
     invoke GetCommandLine											;
@@ -56,7 +67,7 @@ WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD
     LOCAL hwnd:HWND													;local variable declarations
 
     mov   wc.cbSize,SIZEOF WNDCLASSEX								;Size
-    mov   wc.style, CS_HREDRAW or CS_VREDRAW						;?
+    mov   wc.style, CS_HREDRAW or CS_VREDRAW						;sets to redraw when moved?
     mov   wc.lpfnWndProc, OFFSET WndProc							;?
     mov   wc.cbClsExtra,NULL										;?
     mov   wc.cbWndExtra,NULL										;?
@@ -96,36 +107,48 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
     .ELSEIF uMsg==WM_LBUTTONDOWN									;mouse click
 
 		invoke getCoord, lParam										;Gets mouse coordinates
-        mov MouseClick,TRUE											;
-		invoke MoveToEx, hdc, hitpoint.x, hitpoint.y, NULL			;Moves drawing marker
-        ;invoke InvalidateRect,hWnd,NULL,FALSE					;Prepares area for editing(Dont need. interesting if you want to mess up other windows)
-																	;hWnd:this window	Null:whole window	False:doesn't clear area first
+        mov LeftMouseClick, TRUE									;
+		;invoke MoveToEx, hdc, hitpoint.x, hitpoint.y, NULL			;Moves drawing marker
+        ;invoke InvalidateRect,hWnd,NULL,FALSE				;Prepares area for editing(Dont need. interesting if you want to mess up other windows)
+															;hWnd:this window	Null:whole window	False:doesn't clear area first
+
+	.ELSEIF uMsg==WM_RBUTTONDOWN
+		invoke getCoord, lParam
+		mov RightMouseClick, TRUE
 
     .ELSEIF uMsg==WM_PAINT											;WM_Paint sends when some area is invalidated
 		invoke GetDC, hWnd
 		mov    hdc,eax 
 
-        .IF MouseClick
-			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, 0			;sets pixel at x,y to color 0 (black)
-
-        .ENDIF 
+        .IF LeftMouseClick
+			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, penColor			;sets pixel at x,y to penColor (default back)
+        .ELSEIF RightMouseClick
+			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, eraseColor		;"erases" by setting color to background color
+		.ENDIF 
 		invoke ReleaseDC, hWnd, hdc
 
 	.ELSEIF uMsg==WM_MOUSEMOVE
-		.if MouseClick
+		invoke getCoord, lParam
+		.if LeftMouseClick											;continues drawing if LMB is still down
 			invoke GetDC, hWnd 
 			mov    hdc,eax
-			invoke getCoord, lParam
-			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, 0
+			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, penColor
+			invoke ReleaseDC, hWnd, hdc
+		.ELSEIF RightMouseClick										;continues "erasing" if RMB is still down
+			invoke GetDC, hWnd
+			mov    hdc, eax
+			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, eraseColor
 			invoke ReleaseDC, hWnd, hdc
 		.ENDIF
-    
 	
 	.ELSEIF uMsg==WM_LBUTTONUP										;cancels drawing on movement
-		.IF MouseClick
-			mov MouseClick, FALSE
+		.IF LeftMouseClick
+			mov LeftMouseClick, FALSE
 		.ENDIF
-
+	.ELSEIF uMsg==WM_RBUTTONUP										;cancels "erasing" on movement
+		.IF RightMouseClick
+			mov RightMouseClick, FALSE
+		.ENDIF
 
 	.ELSE
 		invoke DefWindowProc,hWnd,uMsg,wParam,lParam				;
@@ -150,5 +173,27 @@ getCoord proc lParam:LPARAM										;Gets mouse coordinates
 getCoord endp
 
 
+;Need to get io.h working first
+setColor proc
+	mov penColor, 0												;Clears pen color
+																;Color format: 00RRGGBBh
+
+
+	;input redPrompt, string, 3									;Adds red component
+	;atod string
+	shl eax, 4
+	add penColor, eax
+
+	;input greenPrompt, string, 3								;Adds green component
+	;atod string
+	shl eax, 2
+	add penColor, eax
+
+	;input bluePrompt, string, 3								;Adds blue component
+	;atod string
+	add penColor, eax
+
+	ret
+setColor endp
 END
 
