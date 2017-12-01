@@ -10,15 +10,16 @@
 .model flat, stdcall
 option casemap :none
 
-																;Includes
-;INCLUDE io.h													;User I/O tools
-include \masm32\include\windows.inc								;Needed to install
-include \masm32\include\user32.inc								;Windows tools
+													;Includes
+;INCLUDE io.h										;User I/O tools
+
+include \masm32\include\windows.inc					;Needed to install
+include \masm32\include\user32.inc					;Windows tools
 include \masm32\include\kernel32.inc 
 includelib \masm32\lib\user32.lib 
 includelib \masm32\lib\kernel32.lib 
 
-include \masm32\include\gdi32.inc								;Drawing tools
+include \masm32\include\gdi32.inc					;Drawing tools
 includelib \masm32\lib\gdi32.lib
 
 
@@ -32,16 +33,16 @@ setColor proto
 
 .data?
 hInstance HINSTANCE ?											;handler
-CommandLine LPSTR ?												;
-hitpoint POINT <>												;click location
-;string Word DUP 3 (?)
+CommandLine LPSTR ?												
+hitpoint POINT <>												;mouse location
+string Word 3 DUP (?)
 
 
 
 
 .data
 AppName  db "MyPaint",0											;window name
-ClassName db "SimpleWinClass",0									;
+ClassName db "SimpleWinClass",0									
 LeftMouseClick db 0												;0=no click yet
 RightMouseClick db 0
 eraseColor DWORD 00FFFFFFh										;Sets erase color to white
@@ -51,12 +52,15 @@ redPrompt BYTE "Enter the red value (0-255):",0					;Prompts for changing pen co
 greenPrompt	BYTE "Enter the green value (0-255):",0
 bluePrompt BYTE "Enter the blue value (0-255):",0
 
+
+fileName BYTE "snowmen.bmp",0
+
 .code
-WinMainCRTStartup PROC														;Setup
+WinMainCRTStartup PROC												;Setup
 	invoke GetModuleHandle, NULL									;places module handle into eax
-    mov    hInstance,eax											;
-    invoke GetCommandLine											;
-    mov CommandLine,eax												;
+    mov    hInstance,eax											
+    invoke GetCommandLine											
+    mov CommandLine,eax												
     invoke WinMain, hInstance,NULL,CommandLine, SW_SHOWDEFAULT		;window
     invoke ExitProcess,eax
 WinMainCRTStartup ENDP
@@ -64,33 +68,33 @@ WinMainCRTStartup ENDP
 WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD 
     LOCAL wc:WNDCLASSEX 
     LOCAL msg:MSG 
-    LOCAL hwnd:HWND													;local variable declarations
+    LOCAL hwnd:HWND													;Local variable declarations
 
-    mov   wc.cbSize,SIZEOF WNDCLASSEX								;Size
-    mov   wc.style, CS_HREDRAW or CS_VREDRAW						;sets to redraw when moved?
-    mov   wc.lpfnWndProc, OFFSET WndProc							;?
-    mov   wc.cbClsExtra,NULL										;?
-    mov   wc.cbWndExtra,NULL										;?
-    push  hInst														;?
-    pop   wc.hInstance												;?
-    mov   wc.hbrBackground,COLOR_WINDOW+1							;background color
-    mov   wc.lpszMenuName,NULL										;?
-    mov   wc.lpszClassName,OFFSET ClassName							;?
-    invoke LoadIcon,NULL,IDI_APPLICATION							;?
-    mov   wc.hIcon,eax												;?
-    mov   wc.hIconSm,eax											;?
-    invoke LoadCursor,NULL,IDC_ARROW								;?
-    mov   wc.hCursor,eax											;?
-    invoke RegisterClassEx, addr wc									;?
+    mov   wc.cbSize,SIZEOF WNDCLASSEX								;Default window size
+    mov   wc.style, CS_HREDRAW or CS_VREDRAW						;Sets window to redraw when moved
+    mov   wc.lpfnWndProc, OFFSET WndProc							;Defines window's procedure
+    mov   wc.cbClsExtra,NULL										;Extra bytes for
+    mov   wc.cbWndExtra,NULL										;Extra bytes for window
+    push  hInst														;window handle
+    pop   wc.hInstance												
+    mov   wc.hbrBackground,COLOR_WINDOW+1							;Background color
+    mov   wc.lpszMenuName,NULL										;No menu
+    mov   wc.lpszClassName,OFFSET ClassName							
+    invoke LoadIcon,NULL,IDI_APPLICATION							;Window icon
+    mov   wc.hIcon,eax												
+    mov   wc.hIconSm,eax											
+    invoke LoadCursor,NULL,IDC_ARROW								;Cursor symbol while in window
+    mov   wc.hCursor,eax											
+    invoke RegisterClassEx, addr wc									
     invoke CreateWindowEx,NULL,ADDR ClassName,ADDR AppName,\		;Creates window
            WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,\ 
            CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,NULL,NULL,\ 
            hInst,NULL 
-    mov   hwnd,eax													;
+    mov   hwnd,eax													
     invoke ShowWindow, hwnd,SW_SHOWNORMAL							;Displays Window
-    invoke UpdateWindow, hwnd										;
+    invoke UpdateWindow, hwnd										
     .WHILE TRUE														;loop changes message
-                invoke GetMessage, ADDR msg,NULL,0,0				;gets message (https://docs.microsoft.com/en-us/cpp/mfc/reference/handlers-for-wm-messages)
+                invoke GetMessage, ADDR msg,NULL,0,0				;gets message						(https://msdn.microsoft.com/en-us/library/windows/desktop/ms644936(v=vs.85).aspx)
                 .BREAK .IF (!eax) 
                 invoke DispatchMessage, ADDR msg					;sends message
     .ENDW 
@@ -107,7 +111,7 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
     .ELSEIF uMsg==WM_LBUTTONDOWN									;mouse click
 
 		invoke getCoord, lParam										;Gets mouse coordinates
-        mov LeftMouseClick, TRUE									;
+        mov LeftMouseClick, TRUE									;Left mouse down flag
 		;invoke MoveToEx, hdc, hitpoint.x, hitpoint.y, NULL			;Moves drawing marker
         ;invoke InvalidateRect,hWnd,NULL,FALSE				;Prepares area for editing(Dont need. interesting if you want to mess up other windows)
 															;hWnd:this window	Null:whole window	False:doesn't clear area first
@@ -117,29 +121,29 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		mov RightMouseClick, TRUE
 
     .ELSEIF uMsg==WM_PAINT											;WM_Paint sends when some area is invalidated
-		invoke GetDC, hWnd
-		mov    hdc,eax 
-
+		invoke GetDC, hWnd											;Gets a handle for device context 
+		mov    hdc, eax
         .IF LeftMouseClick
-			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, penColor			;sets pixel at x,y to penColor (default back)
+			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, penColor	;Sets pixel at x,y to penColor (default back)
         .ELSEIF RightMouseClick
-			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, eraseColor		;"erases" by setting color to background color
+			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, eraseColor;"erases" by setting color to background color
 		.ENDIF 
 		invoke ReleaseDC, hWnd, hdc
 
 	.ELSEIF uMsg==WM_MOUSEMOVE
 		invoke getCoord, lParam
-		.if LeftMouseClick											;continues drawing if LMB is still down
+		.if LeftMouseClick					;continues drawing if LMB is still down
 			invoke GetDC, hWnd 
 			mov    hdc,eax
 			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, penColor
 			invoke ReleaseDC, hWnd, hdc
-		.ELSEIF RightMouseClick										;continues "erasing" if RMB is still down
+		.ELSEIF RightMouseClick				;continues "erasing" if RMB is still down
 			invoke GetDC, hWnd
 			mov    hdc, eax
 			invoke SetPixel, hdc, hitpoint.x, hitpoint.y, eraseColor
 			invoke ReleaseDC, hWnd, hdc
 		.ENDIF
+
 	
 	.ELSEIF uMsg==WM_LBUTTONUP										;cancels drawing on movement
 		.IF LeftMouseClick
@@ -151,7 +155,7 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 		.ENDIF
 
 	.ELSE
-		invoke DefWindowProc,hWnd,uMsg,wParam,lParam				;
+		invoke DefWindowProc,hWnd,uMsg,wParam,lParam				
         ret 
     .ENDIF 
 	 
