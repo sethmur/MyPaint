@@ -67,6 +67,10 @@
 		padBytes			DWORD	?				; xPixels % 4
 		
 		index				DWORD	?				; = (row * xPixel + column) * 3 + row * padding
+<<<<<<< master
+=======
+		sPixel				BYTE	?, ?, ?			; Individial BRG pixel that will be scaled and stored
+>>>>>>> master
 
     .code                       ; Tell MASM where the code starts
 
@@ -87,9 +91,15 @@ main proc
 	xor		edx, edx
 
 
+<<<<<<< master
 	;=======================================================================;
 	;		Using CreateFile to get File handle for our output file			;	
 	;=======================================================================;
+=======
+	;===================================================================;
+	;		Using CreateFile to get File handle for our output file		;	
+	;===================================================================;
+>>>>>>> master
     ; CreateFile(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile)
 	invoke	CreateFile, offset outFile, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, 0
 	mov		hFileOut, EAX	; Move file handle from common register for file to output image
@@ -105,12 +115,21 @@ main proc
 
 
 
+<<<<<<< master
 	;===================================================================================================================;
 	;		Reading file data.																							;
 	;			Step 1:	parsing file header for file information														;
 	;			step 2:	reading the rest of the information separately to store only the pixel content in pixelArray.	;
 	;					See fastgraph.com/help/bmp_header_format.html													;
 	;===================================================================================================================;
+=======
+	;===============================================================================================================;
+	;  Reading file data.																							;
+	;		Step 1:	parsing file header for file information														;
+	;		step 2:	reading the rest of the information separately to store only the pixel content in pixelArray.	;
+	;				See fastgraph.com/help/bmp_header_format.html													;
+	;===============================================================================================================;
+>>>>>>> master
 	; ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesToRead, lpOverlapped)
 	invoke	ReadFile, hFile, offset bmpHeader, bmpHeader_Size, readBytes, 0
 	
@@ -140,6 +159,7 @@ main proc
 	; Reading the rest of the file
 	; ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesToRead, lpOverlapped)
 	invoke	ReadFile, hFile, offset pixelArray, pixelArray_Size, readBytes, 0
+<<<<<<< master
 
 
 
@@ -151,14 +171,21 @@ main proc
 	invoke WriteFile, hFileOut, offset bmpHeader, 54, offset hFileOut, 0
 	; cmp		eax, 0
 	; jz		endRowLoop						; WriteFile returns true for success.  If it fails here there is no reason to continue.
+=======
+>>>>>>> master
 
 
 
 	;===================================================================================;
 	;		Looping through the Pixel Array space and manipulating every RGB pixel.		;
 	;===================================================================================;
+<<<<<<< master
 	xor		edx, edx						; RowCounter: Initialiaze to 0
 											; Range: 0 to (yPixels - 1)			= Rows
+=======
+	mov		edx, yPixels					; Count of rows 
+	dec		yPixels							; Range is 0 to yPixel - 1
+>>>>>>> master
 
 
 	; RowLoop isn't necessary, but it makes the process more intuitive for an image.  
@@ -178,6 +205,7 @@ ColumnLoop:
 	mov		eax, edx						; row
 	mul		xPixels							; row * xPixels
 	add		eax, ecx						; row * xPixels + ecx
+<<<<<<< master
 	imul	eax, 3							; (row * xPixels + ecx) * 3			; In 24-bit bmp: Pixel.Size = 3
 	mov		ebx, padBytes					; padBytes
 	imul	ebx, edx						; padBytes * edx
@@ -194,9 +222,26 @@ ColumnLoop:
 	;		pixelArray starts at bottom left of the image		;
 	;	  In sets of three bytes, the color order is: BRG		;
 	;===========================================================;
+=======
+	imul	eax, 3							; (row * xPixels + ecx) * 3
+	mov		index, eax						
+	mov		eax, padBytes					; padBytes
+	imul	eax, edx						; padBytes * edx
+	add		index, eax						; (row * xPixels + ecx) * 3 + padBytes * edx
+
+	;===================================================;
+	;		Retrieving the bit RGB24 values				;
+	;			3 Bytes: Red, Green Blue				;
+	;	pixelArray starts at bottom left of the image	;
+	;  In sets of three bytes, the color order is: BRG	;
+	;				Not operational						;
+	;===================================================;
+>>>>>>> master
 	lea		eax, pixelArray					; load effective address of pixelArray					
 	add		eax, index						; move to address of the pixel of interest
+	lea		ebx, sPixel
 
+<<<<<<< master
 	; Instruction operands must be the same size so we're using lower registers
 	mov		bl, BYTE PTR [eax]				; Moving Blue value to ebx		
 	mov		iPixel, bl
@@ -211,6 +256,20 @@ ColumnLoop:
 	;=======================================;
 	;		Saving pixel to memory			;
 	;			Not operational(?)			;
+=======
+	; mozx pads unused memory with zeros. We are using 32 bit registers and storing 8-bit values. Not operational
+	mov		ebx, BYTE PTR [eax]				; Moving Blue value to ebx		
+	mov		sPixel, ebx
+
+	mov		ebx, BYTE PTR [eax + 1]			; Moving Green value to ebx
+
+	mov		ebx, BYTE PTR [eax + 2]			; Moving Red value to ebx
+	
+
+	;=======================================;
+	;		Saving pixel to memory			;
+	;			Not operational				;
+>>>>>>> master
 	;=======================================;
 	mov		eax, offset hFileOut
 	add		eax, index
@@ -223,8 +282,17 @@ ColumnLoop:
 	jge		ColumnLoop
 endColumnLoop:
 
+<<<<<<< master
 	inc		edx
 	cmp		edx, yPixels
+=======
+	; Not operational
+	; write 13 to file,		0D or 13 is carriage return
+	; write 10 to file,		0A or 10 is line feed
+
+	dec		edx
+	cmp		edx, 0
+>>>>>>> master
 	jge		RowLoop
 
 endRowLoop:
