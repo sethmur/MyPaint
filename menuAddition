@@ -35,7 +35,7 @@ getCoord proto :LPARAM
 hInstance HINSTANCE ?											;handler
 CommandLine LPSTR ?												;
 hitpoint POINT <>												;click location
-
+hMenu	HMENU	?
 
 
 
@@ -50,13 +50,13 @@ penColor DWORD 0												;Color of pen intitated as black
 red		DWORD 00FF0000h											;
 blue	DWORD 0000FF00h											;
 green	DWORD 000000FFh											;
-MenuName db "FirstMenu",0										; The name of our menu in the resource file. 
+MenuName db "Menu",0										; The name of our menu in the resource file. 
 
 .const
-IDM_RED equ 1                    ; Menu IDs 
-IDM_BLUE equ 2 
-IDM_GREEN equ 3 
-IDM_EXIT equ 4
+ID_MENU_RED		equ				40001                    ; Menu IDs 
+ID_MENU_BLUE    equ             40002
+ID_MENU_GREEN   equ             40003
+ID_MENU_EXIT    equ             40004
 
 .code
 WinMainCRTStartup PROC														;Setup
@@ -81,8 +81,7 @@ WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD
     push  hInst														;?
     pop   wc.hInstance												;?
     mov   wc.hbrBackground,COLOR_WINDOW+1							;background color
-	mov   wc.lpszMenuName,OFFSET MenuName							;our menu  
-    mov   wc.lpszMenuName,NULL										;?
+	mov   wc.lpszMenuName,NULL							;our menu  
     mov   wc.lpszClassName,OFFSET ClassName							;?
     invoke LoadIcon,NULL,IDI_APPLICATION							;?
     mov   wc.hIcon,eax												;?
@@ -90,9 +89,11 @@ WinMain proc hInst:HINSTANCE,hPrevInst:HINSTANCE,CmdLine:LPSTR,CmdShow:DWORD
     invoke LoadCursor,NULL,IDC_ARROW								;?
     mov   wc.hCursor,eax											;?
     invoke RegisterClassEx, addr wc									;?
+	invoke LoadMenu, hInst, OFFSET MenuName
+	mov		hMenu, eax
     invoke CreateWindowEx,NULL,ADDR ClassName,ADDR AppName,\		;Creates window
            WS_OVERLAPPEDWINDOW,CW_USEDEFAULT,\ 
-           CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,NULL,NULL,\ 
+           CW_USEDEFAULT,CW_USEDEFAULT,CW_USEDEFAULT,NULL,hMenu,\ 
            hInst,NULL 
     mov   hwnd,eax													;
     invoke ShowWindow, hwnd,SW_SHOWNORMAL							;Displays Window
@@ -114,13 +115,13 @@ WndProc proc hWnd:HWND, uMsg:UINT, wParam:WPARAM, lParam:LPARAM
 
 	.ELSEIF uMsg==WM_COMMAND 
         mov eax,wParam 
-        .IF ax==IDM_RED 
+        .IF ax==ID_MENU_RED 
             mov	eax, red
 			mov	penColor, eax
-        .ELSEIF ax==IDM_BLUE 
+        .ELSEIF ax==ID_MENU_BLUE 
             mov	eax, blue
 			mov	penColor, eax
-        .ELSEIF ax==IDM_GREEN 
+        .ELSEIF ax==ID_MENU_GREEN 
             mov	eax, green
 			mov	penColor, eax
         .ELSE 
